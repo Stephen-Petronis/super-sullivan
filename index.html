@@ -293,17 +293,17 @@ function saveHS(){ try { localStorage.setItem(KEY + '-hs', JSON.stringify(HS)); 
 const FIREBASE = { apiKey: 'AIzaSyBSJJ7azwFpZoPEjVgFvU4kvTmGFTWFlpA', projectId: 'monster-pizza-9bc93' };
 const ONLINE = !!(FIREBASE.apiKey && FIREBASE.projectId);
 const FS_BASE = () => 'https://firestore.googleapis.com/v1/projects/' + FIREBASE.projectId + '/databases/(default)/documents';
-let hsOnline = false, hsLoading = false;
+let hsOnline = false, hsLoading = false, hsErr = '';
 async function hsFetch(i){
   const body = { structuredQuery: { from: [{ collectionId: 'ss_g' + i }], orderBy: [{ field: { fieldPath: 'k' }, direction: 'ASCENDING' }], limit: 5 } };
   const r = await fetch(FS_BASE() + ':runQuery?key=' + FIREBASE.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error('fs ' + r.status);
+  if (!r.ok){ let m = ''; try { m = ((await r.json()).error || {}).status || ''; } catch (e) {} throw new Error(r.status + ' ' + m); }
   const rows = await r.json();
   return rows.filter(x => x.document).map(x => { const f = x.document.fields; return { n: f.n.stringValue, k: +(f.k.doubleValue ?? f.k.integerValue), d: f.d.stringValue }; });
 }
 async function hsRefresh(){
   if (!ONLINE || hsLoading) return; hsLoading = true;
-  try { const all = await Promise.all([0, 1, 2, 3].map(hsFetch)); HS = all; hsOnline = true; saveHS(); } catch (e) { hsOnline = false; }
+  try { const all = await Promise.all([0, 1, 2, 3].map(hsFetch)); HS = all; hsOnline = true; hsErr = ''; saveHS(); } catch (e) { hsOnline = false; hsErr = String(e && e.message || e).slice(0, 26); try { console.warn('High scores offline:', e); } catch (_) {} }
   hsLoading = false;
 }
 async function hsPost(i, e){
@@ -377,7 +377,8 @@ function scoresScene(i0, back){
       T(e ? e.d : '', 146, y + 9, '#7ef0c0', 8, 'right');
     }
     T((i + 1) + ' / 4', 90, 248, '#c9b8f0', 8);
-    T(!ONLINE ? 'THIS DEVICE' : hsLoading ? 'LOADING...' : hsOnline ? 'EVERYONE' : 'OFFLINE', 90, 262, hsOnline ? '#7ef0c0' : '#8a7ab8', 8);
+    T(!ONLINE ? 'THIS DEVICE' : hsLoading ? 'LOADING...' : hsOnline ? 'EVERYONE' : 'OFFLINE', 90, 258, hsOnline ? '#7ef0c0' : '#8a7ab8', 8);
+    if (ONLINE && !hsOnline && !hsLoading && hsErr) T(hsErr, 90, 270, '#ff8fc7', 8);
     bs.forEach(drawBtn);
   };
   return S;
