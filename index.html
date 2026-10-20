@@ -43,7 +43,7 @@ canvas{
 'use strict';
 /* ================= CONFIG (tune here) ================= */
 const CFG = {
-  candles: { count: 11, time: 25, relightMin: 1.25, relightMax: 1.75, stars: [11, 18] },
+  candles: { count: 11, time: 20, relightMin: 0.95, relightMax: 1.35, hit: 9, stars: [9, 14] },
   goblins: { big: 9, time: 40, stars: [20, 30] },
   bike:    { maxSpeed: 225, accel: 160, drag: 70, gravity: 270, spin: 3.2, gasSpin: 7.0, passiveSpin: 0.35, landTol: 0.62, flipBonus: 2, stars: [30, 44] },
   hockey:  { minutes: 1, speed: 56, oppSpeed: 0.88, shot: 175, pass: 140 },
@@ -548,7 +548,7 @@ function candlesScene(){
     if (state !== 'play') return;
     for (const c of cs){
       if (!c.lit) continue;
-      if (segDist(c.x + 0.5, c.y - 6, ax, ay, bx, by) < 12){
+      if (segDist(c.x + 0.5, c.y - 6, ax, ay, bx, by) < cfg.hit){
         c.lit = false; c.re = rnd(cfg.relightMin, cfg.relightMax); SFX.blow();
         for (let k = 0; k < 6; k++) parts.push({ x: c.x + rnd(-1, 1), y: c.y - 4, vx: rnd(-6, 6), vy: rnd(-26, -14), g: -4, life: rnd(0.7, 1.2), c: pick(['#cfc8dc', '#a99fbd', '#e8e0f0']), s: 2 });
       }
