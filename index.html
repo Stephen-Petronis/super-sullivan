@@ -288,6 +288,33 @@ let HS = [[], [], [], []];
 try { const v = JSON.parse(localStorage.getItem(KEY + '-hs') || 'null'); if (Array.isArray(v) && v.length === 4) HS = v; } catch (e) {}
 let lastIni = 'AAA'; try { lastIni = localStorage.getItem(KEY + '-ini') || 'AAA'; } catch (e) {}
 function saveHS(){ try { localStorage.setItem(KEY + '-hs', JSON.stringify(HS)); localStorage.setItem(KEY + '-ini', lastIni); } catch (e) {} }
+/* ---------- SHARED ONLINE HIGH SCORES (Firebase Firestore, REST — no SDK needed) ----------
+   Paste your Firebase web config values here. Leave blank to keep scores on this device only. */
+const FIREBASE = { apiKey: '', projectId: '' };
+const ONLINE = !!(FIREBASE.apiKey && FIREBASE.projectId);
+const FS_BASE = () => 'https://firestore.googleapis.com/v1/projects/' + FIREBASE.projectId + '/databases/(default)/documents';
+let hsOnline = false, hsLoading = false;
+async function hsFetch(i){
+  const body = { structuredQuery: { from: [{ collectionId: 'ss_g' + i }], orderBy: [{ field: { fieldPath: 'k' }, direction: 'ASCENDING' }], limit: 5 } };
+  const r = await fetch(FS_BASE() + ':runQuery?key=' + FIREBASE.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('fs ' + r.status);
+  const rows = await r.json();
+  return rows.filter(x => x.document).map(x => { const f = x.document.fields; return { n: f.n.stringValue, k: +(f.k.doubleValue ?? f.k.integerValue), d: f.d.stringValue }; });
+}
+async function hsRefresh(){
+  if (!ONLINE || hsLoading) return; hsLoading = true;
+  try { const all = await Promise.all([0, 1, 2, 3].map(hsFetch)); HS = all; hsOnline = true; saveHS(); } catch (e) { hsOnline = false; }
+  hsLoading = false;
+}
+async function hsPost(i, e){
+  if (!ONLINE) return;
+  try {
+    await fetch(FS_BASE() + '/ss_g' + i + '?key=' + FIREBASE.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { n: { stringValue: e.n }, k: { doubleValue: e.k }, d: { stringValue: e.d }, t: { timestampValue: new Date().toISOString() } } }) });
+    hsRefresh();
+  } catch (err) {}
+}
+hsRefresh();
 function hsRank(i, key){ const L = HS[i]; let r = L.findIndex(e => key < e.k); if (r < 0) r = L.length; return r < 5 ? r : -1; }
 function finish(i, res){
   if (res.win){ best[i] = Math.max(best[i] || 0, res.stars); saveBest(); }
@@ -300,7 +327,7 @@ function initialsScene(i, res){
   S.enter = () => { SFX.win(); bs = [btn(36, 232, 108, 26, 'OK', save)]; for (let k = 0; k < 3; k++) burst(parts, 90, 60, 16, CONF, 90, 80, 1.4); };
   function save(){
     lastIni = ini.map(n => L[n]).join('');
-    const r = hsRank(i, res.key); HS[i].splice(r, 0, { n: lastIni, k: res.key, d: res.disp }); HS[i] = HS[i].slice(0, 5); saveHS();
+    const r = hsRank(i, res.key), entry = { n: lastIni, k: res.key, d: res.disp }; HS[i].splice(r, 0, entry); HS[i] = HS[i].slice(0, 5); saveHS(); hsPost(i, entry);
     res.rank = r; go(resultScene(i, res));
   }
   S.update = dt => { t += dt; stepParts(parts, dt); };
@@ -334,7 +361,7 @@ function initialsScene(i, res){
 }
 function scoresScene(i0, back){
   const S = { quit: false }; let i = i0, bs;
-  S.enter = () => { bs = [btn(46, 286, 88, 22, 'BACK', back, '#c9b8f0')]; };
+  S.enter = () => { bs = [btn(46, 286, 88, 22, 'BACK', back, '#c9b8f0')]; hsRefresh(); };
   S.down = p => { if (hitBtn(bs, p)) return; if (p.y > 30 && p.y < 270){ if (p.x < 60){ i = (i + 3) % 4; SFX.tap(); } else if (p.x > 120){ i = (i + 1) % 4; SFX.tap(); } } };
   S.draw = () => {
     R(0, 0, W, H, STAGES[i].bg); for (let y = 0; y < H; y += 16) R(0, y, W, 8, 'rgba(255,255,255,.035)');
@@ -350,6 +377,7 @@ function scoresScene(i0, back){
       T(e ? e.d : '', 146, y + 9, '#7ef0c0', 8, 'right');
     }
     T((i + 1) + ' / 4', 90, 248, '#c9b8f0', 8);
+    T(!ONLINE ? 'THIS DEVICE' : hsLoading ? 'LOADING...' : hsOnline ? 'EVERYONE' : 'OFFLINE', 90, 262, hsOnline ? '#7ef0c0' : '#8a7ab8', 8);
     bs.forEach(drawBtn);
   };
   return S;
@@ -421,6 +449,7 @@ function menuScene(){
 
 /* ---------- STAGE CARD ---------- */
 function cardScene(i){
+  hsRefresh();
   const st = STAGES[i]; const S = { quit: true, isCard: true }; let t = 0;
   S.enter = () => { t = 0; };
   S.update = dt => { t += dt; };
