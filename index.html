@@ -290,7 +290,7 @@ let lastIni = 'AAA'; try { lastIni = localStorage.getItem(KEY + '-ini') || 'AAA'
 function saveHS(){ try { localStorage.setItem(KEY + '-hs', JSON.stringify(HS)); localStorage.setItem(KEY + '-ini', lastIni); } catch (e) {} }
 /* ---------- SHARED ONLINE HIGH SCORES (Firebase Firestore, REST — no SDK needed) ----------
    Paste your Firebase web config values here. Leave blank to keep scores on this device only. */
-const FIREBASE = { apiKey: '', projectId: '' };
+const FIREBASE = { apiKey: 'AIzaSyBSJJ7azwFpZoPEjVgFvU4kvTmGFTWFlpA', projectId: 'monster-pizza-9bc93' };
 const ONLINE = !!(FIREBASE.apiKey && FIREBASE.projectId);
 const FS_BASE = () => 'https://firestore.googleapis.com/v1/projects/' + FIREBASE.projectId + '/databases/(default)/documents';
 let hsOnline = false, hsLoading = false;
